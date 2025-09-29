@@ -26,6 +26,10 @@ ROBOTSTXT_OBEY = True
 CONCURRENT_REQUESTS_PER_DOMAIN = 1
 DOWNLOAD_DELAY = 1
 
+# Retry and timeout settings
+RETRY_TIMES = 2
+DOWNLOAD_TIMEOUT = 180
+
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
 
@@ -33,10 +37,10 @@ DOWNLOAD_DELAY = 1
 #TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
-#DEFAULT_REQUEST_HEADERS = {
-#    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-#    "Accept-Language": "en",
-#}
+DEFAULT_REQUEST_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "fr",
+}
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
@@ -58,9 +62,9 @@ DOWNLOAD_DELAY = 1
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "books_to_scrape.pipelines.BooksToScrapePipeline": 300,
-#}
+ITEM_PIPELINES = {
+    "books_to_scrape.pipelines.BooksToScrapePostgresPipeline": 300,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
@@ -85,3 +89,15 @@ DOWNLOAD_DELAY = 1
 
 # Set settings whose default value is deprecated to a future-proof value
 FEED_EXPORT_ENCODING = "utf-8"
+
+# Configuration PostgreSQL
+# PostgreSQL configuration
+import os
+
+DATABASE_SETTINGS = {
+    'host': os.getenv('POSTGRES_HOST', 'localhost'),
+    'port': int(os.getenv('POSTGRES_PORT', 5432)),
+    'database': os.getenv('POSTGRES_DB', 'scrapy_db'),
+    'user': os.getenv('POSTGRES_USER', 'scrapy_user'),
+    'password': os.getenv('POSTGRES_PASSWORD', 'scrapy_password')
+}

@@ -1,0 +1,28 @@
+# Configuration cron pour le scraping automatique de books.toscrape.com
+# Cron configuration for automatic scraping of books.toscrape.com
+#
+# Format: minute hour day month weekday command
+# Exécute le scraping toutes les heures
+# Run scraping every hour
+
+# Variables d'environnement nécessaires pour cron
+# Environment variables needed for cron
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=scrapy_db
+POSTGRES_USER=scrapy_user
+POSTGRES_PASSWORD=scrapy_password
+PYTHONPATH=/app
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Tâche cron : exécution toutes les heures avec logging
+# Cron job: run every hour with logging
+0 * * * * cd /app && scrapy crawl books >> /app/logs/scraping_$(date +\%Y\%m\%d).log 2>&1
+
+# Optionnel : nettoyage hebdomadaire des logs (tous les dimanches à 2h)
+# Optional: weekly log cleanup (every Sunday at 2 AM)
+0 2 * * 0 find /app/logs -name "scraping_*.log" -mtime +7 -delete
+
+# Optionnel : backup de la base de données (tous les jours à 3h)
+# Optional: database backup (every day at 3 AM)
+# 0 3 * * * pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER $POSTGRES_DB > /app/backup/backup_$(date +\%Y\%m\%d_\%H\%M).sql
