@@ -3,10 +3,12 @@
 
 -- Table pour stocker les livres scrapés avec tous les détails
 -- Table to store scraped books with all details
+-- Les prix sont stockés en centimes (INTEGER) pour éviter les problèmes de précision
+-- Prices are stored in cents (INTEGER) to avoid precision issues
 CREATE TABLE IF NOT EXISTS books (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
-    price DECIMAL(10, 2),
+    price INTEGER,  -- Prix en centimes / Price in cents
     availability VARCHAR(50),
     rating VARCHAR(20),
     url TEXT UNIQUE,
@@ -15,9 +17,9 @@ CREATE TABLE IF NOT EXISTS books (
     category VARCHAR(100),
     upc VARCHAR(50) UNIQUE,
     product_type VARCHAR(100),
-    price_excl_tax DECIMAL(10, 2),
-    price_incl_tax DECIMAL(10, 2),
-    tax DECIMAL(10, 2),
+    price_excl_tax INTEGER,  -- Prix HT en centimes / Price excl. tax in cents
+    price_incl_tax INTEGER,  -- Prix TTC en centimes / Price incl. tax in cents
+    tax INTEGER,  -- Taxe en centimes / Tax in cents
     number_of_reviews INTEGER DEFAULT 0,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

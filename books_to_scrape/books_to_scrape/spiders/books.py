@@ -1,8 +1,9 @@
-import datetime
+# -*- coding: utf-8 -*-
 from datetime import datetime
-import re
-
 import scrapy
+
+from books_to_scrape.items import BookItem
+from books_to_scrape.loaders import BookLoader
 
 
 class BooksSpider(scrapy.Spider):
@@ -42,34 +43,42 @@ class BooksSpider(scrapy.Spider):
 
     def parse_book_details(self, response):
         """
-        Parse les détails complets d'un livre
+        Parse les détails complets d'un livre en utilisant ItemLoader
         ----------
-        Parse complete details of a book
+        Parse complete details of a book using ItemLoader
         """
+        # Créer le loader pour cet item
+        # Create loader for this item
+        loader = BookLoader(item=BookItem(), response=response)
+
         # Informations de base
         # Basic information
-        title = response.css('h1::text').get()
-        price_text = response.css('p.price_color::text').get()
-        price = float(re.sub(r'[£]', '', price_text)) if price_text else None
+        loader.add_css('title', 'h1::text')
+        loader.add_css('price', 'p.price_color::text')
+        loader.add_css('rating', 'p.star-rating::attr(class)')
 
-        # Disponibilité
-        # Availability
-        availability_text = response.css('p.instock.availability::text').re_first(r'\((\d+) available\)')
-        availability = availability_text if availability_text else response.css('p.instock.availability::text').re_first(r'\w+')
+        # Disponibilité (extraire tout le texte)
+        # Availability (extract all text)
+        loader.add_css('availability', 'p.instock.availability::text')
 
-        # Rating
-        rating_class = response.css('p.star-rating::attr(class)').get()
-        rating = re.search(r'star-rating (\w+)', rating_class).group(1) if rating_class else None
-
-        # Image
+        # URL et image
+        # URL and image
+        loader.add_value('url', response.url)
         image_url = response.css('div.item.active img::attr(src)').get()
         if image_url:
-            image_url = response.urljoin(image_url)
+            loader.add_value('image_url', response.urljoin(image_url))
 
+        # Description
         # Description
         description = response.css('#product_description + p::text').get()
         if not description:
             description = response.css('article.product_page p::text').get()
+        if description:
+            loader.add_value('description', description)
+
+        # Catégorie (breadcrumb)
+        # Category (breadcrumb)
+        loader.add_css('category', 'ul.breadcrumb li:nth-last-child(2) a::text')
 
         # Informations du tableau produit
         # Product table information
@@ -81,41 +90,25 @@ class BooksSpider(scrapy.Spider):
             if key and value:
                 product_info[key.strip()] = value.strip()
 
-        # Catégorie (breadcrumb)
-        # Category (breadcrumb)
-        category = response.css('ul.breadcrumb li:nth-last-child(2) a::text').get()
+        # Ajouter les détails du produit
+        # Add product details
+        if 'UPC' in product_info:
+            loader.add_value('upc', product_info['UPC'])
+        if 'Product Type' in product_info:
+            loader.add_value('product_type', product_info['Product Type'])
+        if 'Price (excl. tax)' in product_info:
+            loader.add_value('price_excl_tax', product_info['Price (excl. tax)'])
+        if 'Price (incl. tax)' in product_info:
+            loader.add_value('price_incl_tax', product_info['Price (incl. tax)'])
+        if 'Tax' in product_info:
+            loader.add_value('tax', product_info['Tax'])
+        if 'Number of reviews' in product_info:
+            loader.add_value('number_of_reviews', product_info['Number of reviews'])
 
-        # Construire l'item avec tous les détails
-        # Build item with all details
-        yield {
-            'title': title,
-            'price': price,
-            'availability': availability,
-            'rating': rating,
-            'url': response.url,
-            'image_url': image_url,
-            'description': description,
-            'category': category,
-            # Détails du tableau produit
-            # Product table details
-            'upc': product_info.get('UPC'),
-            'product_type': product_info.get('Product Type'),
-            'price_excl_tax': self.parse_price(product_info.get('Price (excl. tax)')),
-            'price_incl_tax': self.parse_price(product_info.get('Price (incl. tax)')),
-            'tax': self.parse_price(product_info.get('Tax')),
-            'number_of_reviews': int(product_info.get('Number of reviews', 0)) if product_info.get('Number of reviews', '0').isdigit() else 0,
-            'scraped_at': datetime.now()
-        }
+        # Timestamp de scraping
+        # Scraping timestamp
+        loader.add_value('scraped_at', datetime.now())
 
-    def parse_price(self, price_text):
-        """
-        Parse et convertit un prix en float
-        ----------
-        Parse and convert price to float
-        """
-        if not price_text:
-            return None
-        try:
-            return float(re.sub(r'[£]', '', price_text))
-        except (ValueError, TypeError):
-            return None
+        # Charger et retourner l'item
+        # Load and return item
+        yield loader.load_item()
