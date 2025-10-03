@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: scrapy_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-scrapy_db}
+      POSTGRES_USER: ${POSTGRES_USER:-scrapy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scrapy_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scrapy_user} -d ${POSTGRES_DB:-scrapy_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - scrapy_network
+
+  scrapy:
+    build:
+      context: ./books_to_scrape
+      dockerfile: Dockerfile
+    container_name: scrapy_app
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scrapy_user}:${POSTGRES_PASSWORD:-scrapy_password}@postgres:5432/${POSTGRES_DB:-scrapy_db}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-scrapy_db}
+      POSTGRES_USER: ${POSTGRES_USER:-scrapy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scrapy_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./books_to_scrape:/app
+      - scrapy_data:/app/data
+      - scrapy_logs:/app/logs
+      - scrapy_backup:/app/backup
+    ports:
+      - "6080:6080"
+    networks:
+      - scrapy_network
+
+  api:
+    build:
+      context: ./api_books
+      dockerfile: Dockerfile
+    container_name: api_books
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scrapy_user}:${POSTGRES_PASSWORD:-scrapy_password}@postgres:5432/${POSTGRES_DB:-scrapy_db}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-scrapy_db}
+      POSTGRES_USER: ${POSTGRES_USER:-scrapy_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scrapy_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./api_books:/app
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "api_books.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    networks:
+      - scrapy_network
+
+volumes:
+  postgres_data:
+  scrapy_data:
+  scrapy_logs:
+  scrapy_backup:
+
+networks:
+  scrapy_network:
+    driver: bridge
